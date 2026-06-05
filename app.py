@@ -511,6 +511,46 @@ def operating_points_chart(summary_df: pl.DataFrame) -> alt.Chart:
     return points + labels
 
 
+def clinical_metrics_chart(summary_df: pl.DataFrame) -> alt.Chart:
+    """Grouped bar chart: sensitivity, specificity, PPV, NPV per operating point."""
+    if summary_df.is_empty():
+        return alt.Chart(pl.DataFrame()).mark_bar()
+    label_map = {
+        "Best F1m: Nonlinear Stack (Exp51:LR)": "Beste F1",
+        "Screening thr=0.01 (MelRec~0.93)":     "Screening",
+        "Balanced thr=0.07 (Pareto-optimal)":    "Gebalanceerd",
+    }
+    metric_nl = {
+        "sensitivity": "Gevoeligheid",
+        "specificity": "Specificiteit",
+        "ppv":         "Precisie (PPV)",
+        "npv":         "NPV",
+    }
+    rows = []
+    for row in summary_df.iter_rows(named=True):
+        label = label_map.get(row["operating_point"], row["operating_point"])
+        for col, nl in metric_nl.items():
+            rows.append({
+                "Werkpunt": label,
+                "Maatstaf": nl,
+                "Waarde":   round(float(row[col]), 4),
+            })
+    df = pl.DataFrame(rows)
+    wp_domain = ["Beste F1", "Screening", "Gebalanceerd"]
+    wp_colors = ["#1c83e1", "#f43f5e", "#10b981"]
+    return (
+        alt.Chart(df, height=SMALL_HEIGHT)
+        .mark_bar()
+        .encode(
+            alt.X("Maatstaf:N", title=None, axis=alt.Axis(labelAngle=0)),
+            alt.Y("Waarde:Q", scale=alt.Scale(domain=[0, 1]), title="Waarde"),
+            alt.Color("Werkpunt:N").scale(domain=wp_domain, range=wp_colors),
+            alt.XOffset("Werkpunt:N"),
+            tooltip=["Werkpunt", "Maatstaf", alt.Tooltip("Waarde:Q", format=".1%")],
+        )
+    )
+
+
 def wide_layout():
     with st.container(horizontal_alignment="center"):
         return st.container(
@@ -522,9 +562,7 @@ def disclaimer():
     st.markdown("""
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
                 padding:0.75rem 1rem;margin-top:2rem;color:#64748b;font-size:0.85rem;">
-    <strong>&#9432; Disclaimer</strong> &nbsp; Dit is een onderzoeksprototype gebouwd op de
-    ISIC 2018 dataset. Het is <strong>GEEN medisch hulpmiddel</strong>.
-    Alle uitkomsten vereisen klinische beoordeling door een arts.
+    <strong>&#9432; Disclaimer</strong> &nbsp; Dit is nog niet af.
     </div>
     """, unsafe_allow_html=True)
 
@@ -676,11 +714,11 @@ with wide_layout():
 
     with st.container(width=TEXT_WIDTH):
         """
-        **Drempelafweging** -- door de beslissingsdrempel te verlagen vangt de AI meer
-        melanomen (hogere gevoeligheid), maar geeft ook meer vals alarm (lagere precisie).
-        De drie werkpunten tonen die afweging expliciet.
+        **Klinische maatstaven per werkpunt** -- gevoeligheid (MEL recall), specificiteit,
+        precisie (PPV) en negatief voorspellende waarde (NPV) voor elk van de drie drempels.
+        Screening maximaliseert gevoeligheid; Beste F1 balanceert alle maatstaven.
         """
-    st.altair_chart(operating_points_chart(summary_df), use_container_width=True)
+    st.altair_chart(clinical_metrics_chart(summary_df), use_container_width=True)
 
     disclaimer()
 
@@ -918,4 +956,4 @@ with wide_layout():
     else:
         st.info("Klinische beoordelingsdata niet gevonden in data/dermatologist_review_cases.csv")
 
-    disclaimer()
+    
