@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Huidlaesie AI -- Onderzoeksshowcase
-Data: ISIC 2018 huidlaesie-classificatie (7 klassen, EfficientNet-B0 + 44 morfologische kenmerken).
-"""
-
 import json
 import pickle
 import warnings
@@ -18,16 +13,14 @@ from PIL import Image
 
 warnings.filterwarnings("ignore")
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
+
 st.set_page_config(
     page_title="Huidlaesie AI Onderzoek",
     page_icon=":microscope:",
     layout="wide",
 )
 
-# Mobile-responsive CSS
+
 st.markdown("""
 <style>
 @media screen and (max-width: 768px) {
@@ -83,9 +76,6 @@ CLASS_COLORS = {
 }
 MODEL_COLORS = {"B0+MLP": "#1c83e1", "B0+CBM": "#10b981", "B0+ProtoPNet": "#f59e0b"}
 
-# ---------------------------------------------------------------------------
-# Data loading helpers
-# ---------------------------------------------------------------------------
 
 @st.cache_data(show_spinner=False)
 def load_exp12():
@@ -143,20 +133,14 @@ def load_classifier():
 
 
 def fig_img(name: str) -> Image.Image | None:
-    """Load from data/figures/ directory."""
     p = FIGS / name
     return Image.open(p) if p.exists() else None
 
 
 def data_img(name: str) -> Image.Image | None:
-    """Load from data/ root directory."""
     p = DATA / name
     return Image.open(p) if p.exists() else None
 
-
-# ---------------------------------------------------------------------------
-# Inference pipeline
-# ---------------------------------------------------------------------------
 
 @st.cache_resource(show_spinner="EfficientNet-B0 backbone laden...")
 def load_backbone():
@@ -249,10 +233,6 @@ def run_inference(img: Image.Image):
         "demo_mode":  False,
     }
 
-
-# ---------------------------------------------------------------------------
-# Chart helpers
-# ---------------------------------------------------------------------------
 
 def model_comparison_chart(results: dict) -> alt.Chart:
     rows = []
@@ -410,11 +390,6 @@ def probability_bar_chart(probs: dict) -> alt.Chart:
         )
     )
 
-
-# ---------------------------------------------------------------------------
-# Layout helpers
-# ---------------------------------------------------------------------------
-
 def wide_layout():
     with st.container(horizontal_alignment="center"):
         return st.container(
@@ -432,10 +407,6 @@ def disclaimer():
     </div>
     """, unsafe_allow_html=True)
 
-
-# ---------------------------------------------------------------------------
-# Load data
-# ---------------------------------------------------------------------------
 results12 = load_exp12()
 boot_df   = load_bootstrap()
 thr_df    = load_threshold_tuning()
@@ -463,37 +434,43 @@ for mname, minfo in results12.get("models", {}).items():
             })
 model_df = pl.DataFrame(model_rows) if model_rows else pl.DataFrame()
 
-
-# ===========================================================================
-# DRAW APP
-# ===========================================================================
-
 with wide_layout():
     with st.container(width=TEXT_WIDTH):
         st.title("Huidlaesie AI, _geanalyseerd._")
         st.space()
         """
-        Dit dashboard onderzoekt een huidlaesie-classificatiesysteem getraind op de
-        **ISIC 2018** dermoscopie-dataset (7 klassen, 8.012 afbeeldingen). Het model combineert
-        een **EfficientNet-B0** deep learning backbone (1.280 visuele kenmerken) met
-        **44 handgecraftede morfologische kenmerken** (vorm, kleur, textuur, rand).
+        Onderzoek voor skin cancer classification met explainable AI op **ISIC 2018** met 7 classes
+        en 8k afbeeldingen. Het model heeft een **EfficientNet** basis met vision kenmerken zoals vorm,
+        kleur, textuur en rand.
 
         Drie modelarchitecturen worden vergeleken -- MLP, Concept Bottleneck Model (CBM), en
         ProtoPNet -- waarbij melanoom (:red[MEL]) het primaire klinische doel is.
         """
         st.space()
 
-# ---------------------------------------------------------------------------
-# DEEL I: MODELNAUWKEURIGHEID
-# ---------------------------------------------------------------------------
 with wide_layout():
     with st.container(width=TEXT_WIDTH):
         """
         ## Deel I: Modelnauwkeurigheid
 
-        **Hoe vergelijken de drie architecturen?** De scatter hieronder toont de
+        **Hoe vergelijken de onderzochtte pipelinearchitectures?** De scatter hieronder toont de
         macro-F1 van elk model tegenover zijn ROC AUC. De belgrootte geeft melanoomrecall
         weer -- de meest veiligheidskritische statistiek. Foutbalken tonen 95% bootstrapped BI.
+        **Gevoeligheid (ook wel _recall_)** — Van alle plekjes die écht melanoom zijn:
+            hoeveel herkent de AI? Een gemist melanoom is het gevaarlijkst, dus dit cijfer
+            telt hier het zwaarst. Hoger = beter.
+ 
+        **Precisie** — Als de AI "melanoom" zegt: hoe vaak klopt dat dan echt? Lage
+            precisie betekent veel vals alarm.
+ 
+        **F1-score** — Eén cijfer dat gevoeligheid en precisie samenvat. Het is alleen
+            hoog als de AI weinig gevallen mist én weinig vals alarm geeft. "Macro F1" is
+            het gemiddelde over alle 7 typen, waarbij elk type even zwaar telt — ook de
+            zeldzame. (0 = slecht, 1 = perfect.)
+ 
+        **ROC AUC** — Hoe goed kan de AI twee groepen uit elkaar houden (bijvoorbeeld
+            melanoom vs. geen melanoom), ongeacht hoe streng je de grens legt?
+            0,5 betekent puur gokken, 1,0 betekent perfect onderscheid.
         """
         st.space()
 
@@ -532,9 +509,7 @@ with wide_layout():
 
     with st.container(width=TEXT_WIDTH):
         """
-        **Kalibratie van kansen** -- klopt het vertrouwen van de AI met de werkelijkheid?
-        Een perfect gekalibreerd model volgt de diagonaal. Temperatuurscaling corrigeert
-        oververtrouwen.
+        **Kalibratie van kansen** -- Een perfect gekalibreerd model volgt de diagonaal.
         """
 
     rel_img = fig_img("reliability_diagrams.png")
@@ -543,18 +518,13 @@ with wide_layout():
 
     disclaimer()
 
-# ---------------------------------------------------------------------------
-# DEEL II: PRESTATIES PER KLASSE
-# ---------------------------------------------------------------------------
 with wide_layout():
     st.space("large")
     with st.container(width=TEXT_WIDTH):
         """
         ## Deel II: Prestaties per klasse
 
-        **Welke laesietypen pakt de AI het best -- en het slechtst?** Gebruik de knoppen
-        hieronder om de recall per klasse te verkennen voor elk model bij beide werkpunten.
-        Melanoom (:red[MEL]) is gemarkeerd als de veiligheidskritische klasse.
+        **Welke laesietypen pakt de AI het best -- en het slechtst?**
         """
         st.space()
 
@@ -610,9 +580,6 @@ with wide_layout():
 
     disclaimer()
 
-# ---------------------------------------------------------------------------
-# DEEL III: KENMERKENANALYSE
-# ---------------------------------------------------------------------------
 with wide_layout():
     st.space("large")
     with st.container(width=TEXT_WIDTH):
@@ -683,9 +650,6 @@ with wide_layout():
 
     disclaimer()
 
-# ---------------------------------------------------------------------------
-# DEEL IV: ANALYSEER EEN AFBEELDING
-# ---------------------------------------------------------------------------
 with wide_layout():
     st.space("large")
     with st.container(width=TEXT_WIDTH):
@@ -802,9 +766,6 @@ with wide_layout():
 
     disclaimer()
 
-# ---------------------------------------------------------------------------
-# DEEL V: KLINISCHE BEOORDELINGSGEVALLEN
-# ---------------------------------------------------------------------------
 with wide_layout():
     st.space("large")
     with st.container(width=TEXT_WIDTH):
