@@ -406,6 +406,33 @@ def probability_bar_chart(probs: dict) -> alt.Chart:
         )
     )
 
+def per_class_recall_chart_real(safety_df: pl.DataFrame) -> alt.Chart:
+    if safety_df.is_empty():
+        return alt.Chart(pl.DataFrame()).mark_bar()
+    rec_rows = safety_df.filter(pl.col("category") == "Per-Class Recall")
+    rows = [
+        {
+            "Klasse": row["metric"],
+            "Recall": round(float(row["value"]), 4),
+            "Label": CLASS_LABELS.get(row["metric"], row["metric"]),
+        }
+        for row in rec_rows.iter_rows(named=True)
+    ]
+    df = pl.DataFrame(rows).sort("Recall", descending=True)
+    domain = CLASS_NAMES
+    colors = [CLASS_COLORS[c] for c in CLASS_NAMES]
+    return (
+        alt.Chart(df, height=PLOT_HEIGHT)
+        .mark_bar(cornerRadiusTopRight=4, cornerRadiusBottomRight=4)
+        .encode(
+            alt.X("Recall:Q", scale=alt.Scale(domain=[0, 1])),
+            alt.Y("Klasse:N", sort="-x", title=None),
+            alt.Color("Klasse:N").scale(domain=domain, range=colors).legend(None),
+            tooltip=["Label", alt.Tooltip("Recall:Q", format=".3f")],
+        )
+    )
+
+
 def per_class_f1_chart(safety_df: pl.DataFrame) -> alt.Chart:
     if safety_df.is_empty():
         return alt.Chart(pl.DataFrame()).mark_bar()
@@ -618,59 +645,42 @@ with wide_layout():
         """
         ## Deel II: Prestaties per klasse
 
-        **Welke laesietypen pakt de AI het best -- en het slechtst?**
+        **Welke laesietypen pakt de AI het best -- en het slechtst?** Recall geeft aan
+        hoeveel gevallen van elk type correct worden herkend. Melanoom (:red[MEL]) heeft de
+        laagste recall -- gemiste melanomen zijn het gevaarlijkste faaltype.
         """
         st.space()
 
-        model_choice = st.segmented_control(
-            "Model",
-            list(MODEL_COLORS.keys()),
-            default="B0+MLP",
-        )
-        threshold_mode = st.segmented_control(
-            "Werkpunt",
-            ["Standaard drempel", "MEL-afgestelde drempel"],
-            default="Standaard drempel",
-        )
-        st.space()
+    cols3 = st.columns(2, border=True)
+    with cols3[0]:
+        st.subheader("Recall per klasse (testset)")
+        st.altair_chart(per_class_recall_chart_real(safety_df), use_container_width=True)
 
-    if results12.get("models"):
-        cols3 = st.columns(2, border=True)
-        with cols3[0]:
-            tuned = (threshold_mode == "MEL-afgestelde drempel")
-            st.subheader(f"Recall per klasse -- {model_choice}")
-            st.altair_chart(
-                per_class_recall_chart(results12, model_choice, tuned),
-                use_container_width=True,
-            )
-
-        with cols3[1]:
-            minfo = results12.get("models", {}).get(model_choice, {})
-            key = "mel_tuned" if tuned else "default"
-            d = minfo.get(key, {})
-            st.subheader("Samenvattende statistieken")
-            st.space("small")
+    with cols3[1]:
+        st.subheader("Samenvattende statistieken")
+        st.space("small")
+        if not summary_df.is_empty():
+            best     = summary_df.row(0, named=True)
+            screen   = summary_df.row(1, named=True)
+            balanced = summary_df.row(2, named=True)
             m1, m2 = st.columns(2)
-            m1.metric("Macro F1",       f"{d.get('f1m', 0):.3f}")
-            m2.metric("AUC",            f"{d.get('auc', 0):.3f}")
-            m1.metric("Nauwkeurigheid", f"{d.get('acc', 0):.1%}")
-            m2.metric("MEL Recall",     f"{d.get('mel_rec', 0):.1%}")
-            m1.metric("ECE",            f"{d.get('ece', 0):.4f}",
-                      help="Verwachte Kalibratiefout -- lager is beter (0 is perfect)")
-            m2.metric("MEL drempel",
-                      f"{minfo.get('t_mel', minfo.get('T', 0)):.3f}" if tuned
-                      else f"{minfo.get('T', 0):.3f}")
+            m1.metric("Macro F1 (beste model)", f"{best['f1_macro']:.3f}")
+            m2.metric("ROC AUC",                f"{best['auc']:.4f}")
+            m1.metric("MEL Recall (argmax)",    f"{best['sensitivity']:.1%}")
+            m2.metric("MEL Recall (screening)", f"{screen['sensitivity']:.1%}")
+            m1.metric("MEL Precisie",           f"{best['ppv']:.1%}")
+            m2.metric("NPV (screening)",        f"{screen['npv']:.3f}",
+                      help="Negatief Voorspellende Waarde: kans dat negatief resultaat klopt")
 
     st.space()
 
     with st.container(width=TEXT_WIDTH):
         """
-        **Precisie-Recall afweging** -- elk model heeft een afgestelde drempel die MEL-recall
-        maximaliseert terwijl de macro-F1 boven 90% van de standaardwaarde blijft.
-        De scatter toont de werkpunten gevonden door drempelzoeking.
+        **Drempelafweging** -- door de beslissingsdrempel te verlagen vangt de AI meer
+        melanomen (hogere gevoeligheid), maar geeft ook meer vals alarm (lagere precisie).
+        De drie werkpunten tonen die afweging expliciet.
         """
-    if not thr_df.is_empty():
-        st.altair_chart(threshold_tradeoff_chart(thr_df), use_container_width=True)
+    st.altair_chart(operating_points_chart(summary_df), use_container_width=True)
 
     disclaimer()
 
@@ -681,66 +691,49 @@ with wide_layout():
         ## Deel III: Kenmerkenanalyse
 
         **Wat meet de AI eigenlijk?** De 44 morfologische kenmerken coderen klinische kennis
-        uit de ABCD-regel (Asymmetrie, Rand, Kleur, Dermoscopische structuren). De t-SNE en
-        UMAP projecties tonen of de backbone een klasse-scheidbare inbeddingsruimte leert.
+        uit de ABCD-regel (Asymmetrie, Rand, Kleur, Dermoscopische structuren). Hieronder
+        staan de resultaten rechtstreeks uit het Kaggle-experiment.
         """
         st.space()
 
-    abcd_img = fig_img("abcd_distributions.png")
-    if abcd_img:
-        st.image(abcd_img,
-                 caption="ABCD kenmerkverdeling per klasse -- rode markeringen tonen melanoom mediaan",
+    # Training curves
+    train_img = data_img("__results___10_3.png")
+    if train_img:
+        st.image(train_img,
+                 caption="Trainingscurves: verlies en nauwkeurigheid per epoch voor elk model",
                  use_container_width=True)
 
     st.space()
 
+    # Morphology extraction + threshold sweep
     cols4 = st.columns(2, border=True)
     with cols4[0]:
-        tsne_img = fig_img("tsne_embeddings.png")
-        if tsne_img:
-            st.image(tsne_img, caption="t-SNE projectie van EfficientNet-B0 inbeddingen",
+        morph_img = data_img("__results___10_4.png")
+        if morph_img:
+            st.image(morph_img,
+                     caption="Morfologische kenmerken: extractiediagram (ABCD-regel)",
                      use_container_width=True)
     with cols4[1]:
-        umap_img = fig_img("umap_embeddings.png")
-        if umap_img:
-            st.image(umap_img, caption="UMAP projectie van EfficientNet-B0 inbeddingen",
+        thr_img = data_img("__results___10_5.png")
+        if thr_img:
+            st.image(thr_img,
+                     caption="Drempelzoeking: gevoeligheid en specificiteit als functie van de drempel",
                      use_container_width=True)
 
     st.space()
 
-    fusion_img = fig_img("fusion_analysis.png")
-    if fusion_img:
-        st.image(fusion_img,
-                 caption="Fusieanalyse: bijdrage van backbone vs. morfologie per klasse",
-                 use_container_width=True)
-
-    st.space()
-
+    # Calibration curves
     with st.container(width=TEXT_WIDTH):
         """
-        **GradCAM aandachtskaarten** tonen welke beeldgebieden de backbone gebruikt bij het
-        voorspellen van elke klasse. Hoge aandacht (rood) op de laesie zelf geeft aan dat het
-        model klinisch relevante kenmerken bekijkt.
+        **Kalibratie** -- een goed gekalibreerd model heeft kansen die overeenkomen met de
+        werkelijke frequentie. Temperatuurscaling (T = 0,58) corrigeert het oververtrouwen
+        van het netwerk.
         """
-    gradcam_img = fig_img("gradcam_grid.png")
-    if gradcam_img:
-        st.image(gradcam_img,
-                 caption="GradCAM aandachtskaarten voor verschillende laesietypen en modellen",
+    cal_img = data_img("__results___10_7.png")
+    if cal_img:
+        st.image(cal_img,
+                 caption="Kalibratie voor en na temperatuurscaling",
                  use_container_width=True)
-
-    st.space()
-
-    cols5 = st.columns(2, border=True)
-    with cols5[0]:
-        radar_img = fig_img("radar_comparison.png")
-        if radar_img:
-            st.image(radar_img, caption="Radardiagram: modelcomparison per statistiek",
-                     use_container_width=True)
-    with cols5[1]:
-        concept_img = fig_img("concept_class_heatmap.png")
-        if concept_img:
-            st.image(concept_img, caption="CBM concept activatie heatmap per klasse",
-                     use_container_width=True)
 
     disclaimer()
 
