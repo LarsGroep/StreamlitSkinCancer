@@ -102,6 +102,22 @@ def load_threshold_tuning():
 
 
 @st.cache_data(show_spinner=False)
+def load_clinical_summary():
+    path = DATA / "clinical_summary.csv"
+    if not path.exists():
+        return pl.DataFrame()
+    return pl.read_csv(path)
+
+
+@st.cache_data(show_spinner=False)
+def load_clinical_safety():
+    path = DATA / "clinical_safety_metrics.csv"
+    if not path.exists():
+        return pl.DataFrame()
+    return pl.read_csv(path)
+
+
+@st.cache_data(show_spinner=False)
 def load_review_cases():
     path = DATA / "dermatologist_review_cases.csv"
     if not path.exists():
@@ -390,6 +406,84 @@ def probability_bar_chart(probs: dict) -> alt.Chart:
         )
     )
 
+def per_class_f1_chart(safety_df: pl.DataFrame) -> alt.Chart:
+    if safety_df.is_empty():
+        return alt.Chart(pl.DataFrame()).mark_bar()
+    f1_rows = safety_df.filter(pl.col("category") == "Per-Class F1")
+    rows = [
+        {
+            "Klasse": row["metric"],
+            "F1-score": round(float(row["value"]), 4),
+            "Label": CLASS_LABELS.get(row["metric"], row["metric"]),
+        }
+        for row in f1_rows.iter_rows(named=True)
+    ]
+    df = pl.DataFrame(rows).sort("F1-score", descending=True)
+    domain = CLASS_NAMES
+    colors = [CLASS_COLORS[c] for c in CLASS_NAMES]
+    return (
+        alt.Chart(df, height=PLOT_HEIGHT)
+        .mark_bar(cornerRadiusTopRight=4, cornerRadiusBottomRight=4)
+        .encode(
+            alt.X("F1-score:Q", scale=alt.Scale(domain=[0, 1])),
+            alt.Y("Klasse:N", sort="-x", title=None),
+            alt.Color("Klasse:N").scale(domain=domain, range=colors).legend(None),
+            tooltip=["Label", alt.Tooltip("F1-score:Q", format=".3f")],
+        )
+    )
+
+
+def operating_points_chart(summary_df: pl.DataFrame) -> alt.Chart:
+    if summary_df.is_empty():
+        return alt.Chart(pl.DataFrame()).mark_point()
+    label_map = {
+        "Best F1m: Nonlinear Stack (Exp51:LR)": "Beste F1",
+        "Screening thr=0.01 (MelRec~0.93)":     "Screening",
+        "Balanced thr=0.07 (Pareto-optimal)":    "Gebalanceerd",
+    }
+    color_map = {"Beste F1": "#1c83e1", "Screening": "#f43f5e", "Gebalanceerd": "#10b981"}
+    rows = []
+    for row in summary_df.iter_rows(named=True):
+        label = label_map.get(row["operating_point"], row["operating_point"])
+        rows.append({
+            "Werkpunt": label,
+            "MEL Recall":  round(float(row["sensitivity"]), 4),
+            "Macro F1":    round(float(row["f1_macro"]), 4),
+            "AUC":         round(float(row["auc"]), 4),
+            "Precisie":    round(float(row["ppv"]), 4),
+            "Drempel":     str(row["threshold"]),
+        })
+    df = pl.DataFrame(rows)
+    domain = ["Beste F1", "Screening", "Gebalanceerd"]
+    colors = [color_map[d] for d in domain]
+    points = (
+        alt.Chart(df, height=SMALL_HEIGHT)
+        .mark_point(filled=True, size=250)
+        .encode(
+            alt.X("MEL Recall:Q", scale=alt.Scale(domain=[0, 1]),
+                  title="MEL Recall (Gevoeligheid)"),
+            alt.Y("Macro F1:Q", scale=alt.Scale(domain=[0, 1])),
+            alt.Color("Werkpunt:N").scale(domain=domain, range=colors),
+            tooltip=["Werkpunt", "Drempel",
+                     alt.Tooltip("MEL Recall:Q", format=".1%"),
+                     alt.Tooltip("Macro F1:Q", format=".3f"),
+                     alt.Tooltip("AUC:Q", format=".4f"),
+                     alt.Tooltip("Precisie:Q", format=".1%")],
+        )
+    )
+    labels = (
+        alt.Chart(df)
+        .mark_text(dy=-14, fontSize=11)
+        .encode(
+            alt.X("MEL Recall:Q"),
+            alt.Y("Macro F1:Q"),
+            alt.Text("Werkpunt:N"),
+            alt.Color("Werkpunt:N").scale(domain=domain, range=colors).legend(None),
+        )
+    )
+    return points + labels
+
+
 def wide_layout():
     with st.container(horizontal_alignment="center"):
         return st.container(
@@ -407,11 +501,13 @@ def disclaimer():
     </div>
     """, unsafe_allow_html=True)
 
-results12 = load_exp12()
-boot_df   = load_bootstrap()
-thr_df    = load_threshold_tuning()
-review_df = load_review_cases()
-cfg       = load_config()
+results12  = load_exp12()
+boot_df    = load_bootstrap()
+thr_df     = load_threshold_tuning()
+review_df  = load_review_cases()
+cfg        = load_config()
+summary_df = load_clinical_summary()
+safety_df  = load_clinical_safety()
 
 model_rows = []
 for mname, minfo in results12.get("models", {}).items():
@@ -476,14 +572,12 @@ with wide_layout():
 
     cols = st.columns(2, border=True)
     with cols[0]:
-        st.subheader("F1 vs AUC (bel = MEL recall)")
-        if results12.get("models"):
-            st.altair_chart(model_comparison_chart(results12), use_container_width=True)
+        st.subheader("F1-score per klasse")
+        st.altair_chart(per_class_f1_chart(safety_df), use_container_width=True)
 
     with cols[1]:
-        st.subheader("Bootstrapped 95% BI op Macro F1")
-        if not boot_df.is_empty():
-            st.altair_chart(bootstrap_ci_chart(boot_df), use_container_width=True)
+        st.subheader("Werkpunten: gevoeligheid vs. F1")
+        st.altair_chart(operating_points_chart(summary_df), use_container_width=True)
 
     st.space()
 
