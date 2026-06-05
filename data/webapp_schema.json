@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0",
+  "model": "Nonlinear Stack (Exp51:LR)",
+  "classes": [
+    "AKIEC",
+    "BCC",
+    "BKL",
+    "DF",
+    "NV",
+    "MEL",
+    "VASC"
+  ],
+  "melanoma_class_index": 5,
+  "disclaimer": "NOT FOR DIAGNOSTIC USE. Research prototype only. All predictions require clinical review by a qualified dermatologist.",
+  "inputs": {
+    "image": {
+      "type": "file",
+      "formats": [
+        "JPEG",
+        "PNG"
+      ],
+      "min_resolution": "224x224",
+      "required": true
+    },
+    "image_id": {
+      "type": "string",
+      "description": "Unique case identifier (e.g. ISIC_xxxxxxxx)",
+      "required": true
+    }
+  },
+  "outputs": {
+    "image_id": {
+      "type": "string",
+      "description": "Case identifier echoed from input"
+    },
+    "prediction": {
+      "type": "string",
+      "enum": [
+        "AKIEC",
+        "BCC",
+        "BKL",
+        "DF",
+        "NV",
+        "MEL",
+        "VASC"
+      ],
+      "description": "Argmax predicted class label"
+    },
+    "confidence": {
+      "type": "float",
+      "range": [
+        0.0,
+        1.0
+      ],
+      "description": "Max class probability (top-1 confidence)"
+    },
+    "top_3_classes": {
+      "type": "array",
+      "item_type": "string",
+      "length": 3,
+      "description": "Top-3 predicted classes sorted by probability descending"
+    },
+    "top_3_probs": {
+      "type": "array",
+      "item_type": "float",
+      "length": 3,
+      "description": "Calibrated probabilities for top_3_classes"
+    },
+    "melanoma_probability": {
+      "type": "float",
+      "range": [
+        0.0,
+        1.0
+      ],
+      "description": "Calibrated probability that the lesion is melanoma"
+    },
+    "review_flag": {
+      "type": "boolean",
+      "description": "True when melanoma_probability >= 0.01 (screening threshold, targets MelRec ~0.93)"
+    },
+    "conformal_set": {
+      "type": "array",
+      "item_type": "string",
+      "description": "90% coverage conformal prediction set. Size > 1 indicates model uncertainty; size == 7 means abstain."
+    },
+    "nearest_neighbors": {
+      "type": "array",
+      "max_length": 5,
+      "description": "Top-5 most similar training cases by B0 cosine similarity",
+      "item_schema": {
+        "image_id": "string - training case identifier",
+        "label": "string - true diagnosis of neighbour",
+        "similarity": "float - cosine similarity in [0, 1]",
+        "thumbnail_url": "string | null - optional image path"
+      }
+    },
+    "morphology_features": {
+      "type": "object",
+      "description": "Top-3 morphology features with deviations from population mean",
+      "item_schema": {
+        "feature_name": "string",
+        "value": "float",
+        "population_mean": "float",
+        "deviation": "float"
+      }
+    }
+  },
+  "thresholds": {
+    "screening": {
+      "value": 0.01,
+      "description": "Maximises MEL recall (~0.93). High NPV.",
+      "use_case": "Population screening, telemedicine triage"
+    },
+    "balanced": {
+      "value": 0.07,
+      "description": "Pareto-optimal: best F1m with MelRec >= 0.80.",
+      "use_case": "Specialist clinic, secondary dermatologist review"
+    }
+  },
+  "performance_summary": {
+    "f1_macro": 0.5443,
+    "mel_recall_argmax": 0.6056,
+    "auc_roc": 0.8693,
+    "ece_calibrated": 0.0923
+  }
+}

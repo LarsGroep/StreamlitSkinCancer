@@ -1,0 +1,4 @@
+operating_point,f1_macro,auc,sensitivity,specificity,ppv,npv,TP,TN,FP,FN,threshold,n_review_flagged,notes
+Best F1m: Nonlinear Stack (Exp51:LR),0.7623,0.9276,0.4789,0.9728,0.6476,0.947,68,1323,37,74,argmax,105,
+Screening thr=0.01 (MelRec~0.93),0.4398,0.8693,0.9437,0.5912,0.1942,0.9901,134,804,556,8,0.01,690,High-sensitivity screening; NPV optimised
+Balanced thr=0.07 (Pareto-optimal),0.5196,0.8693,0.8239,0.7426,0.2505,0.9758,117,1010,350,25,0.07,467,Best F1m with MelRec>=0.80 constraint

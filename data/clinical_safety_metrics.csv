@@ -1,0 +1,102 @@
+category,metric,value
+Confusion Matrix,true_AKIEC_pred_AKIEC,42
+Confusion Matrix,true_AKIEC_pred_BCC,6
+Confusion Matrix,true_AKIEC_pred_BKL,6
+Confusion Matrix,true_AKIEC_pred_DF,0
+Confusion Matrix,true_AKIEC_pred_NV,1
+Confusion Matrix,true_AKIEC_pred_MEL,3
+Confusion Matrix,true_AKIEC_pred_VASC,0
+Confusion Matrix,true_BCC_pred_AKIEC,4
+Confusion Matrix,true_BCC_pred_BCC,70
+Confusion Matrix,true_BCC_pred_BKL,2
+Confusion Matrix,true_BCC_pred_DF,0
+Confusion Matrix,true_BCC_pred_NV,2
+Confusion Matrix,true_BCC_pred_MEL,1
+Confusion Matrix,true_BCC_pred_VASC,0
+Confusion Matrix,true_BKL_pred_AKIEC,9
+Confusion Matrix,true_BKL_pred_BCC,8
+Confusion Matrix,true_BKL_pred_BKL,126
+Confusion Matrix,true_BKL_pred_DF,1
+Confusion Matrix,true_BKL_pred_NV,32
+Confusion Matrix,true_BKL_pred_MEL,14
+Confusion Matrix,true_BKL_pred_VASC,0
+Confusion Matrix,true_DF_pred_AKIEC,0
+Confusion Matrix,true_DF_pred_BCC,0
+Confusion Matrix,true_DF_pred_BKL,0
+Confusion Matrix,true_DF_pred_DF,10
+Confusion Matrix,true_DF_pred_NV,3
+Confusion Matrix,true_DF_pred_MEL,0
+Confusion Matrix,true_DF_pred_VASC,0
+Confusion Matrix,true_NV_pred_AKIEC,1
+Confusion Matrix,true_NV_pred_BCC,14
+Confusion Matrix,true_NV_pred_BKL,37
+Confusion Matrix,true_NV_pred_DF,2
+Confusion Matrix,true_NV_pred_NV,917
+Confusion Matrix,true_NV_pred_MEL,19
+Confusion Matrix,true_NV_pred_VASC,2
+Confusion Matrix,true_MEL_pred_AKIEC,2
+Confusion Matrix,true_MEL_pred_BCC,1
+Confusion Matrix,true_MEL_pred_BKL,20
+Confusion Matrix,true_MEL_pred_DF,0
+Confusion Matrix,true_MEL_pred_NV,51
+Confusion Matrix,true_MEL_pred_MEL,68
+Confusion Matrix,true_MEL_pred_VASC,0
+Confusion Matrix,true_VASC_pred_AKIEC,0
+Confusion Matrix,true_VASC_pred_BCC,0
+Confusion Matrix,true_VASC_pred_BKL,1
+Confusion Matrix,true_VASC_pred_DF,0
+Confusion Matrix,true_VASC_pred_NV,1
+Confusion Matrix,true_VASC_pred_MEL,0
+Confusion Matrix,true_VASC_pred_VASC,26
+Per-Class Precision,AKIEC,0.7241
+Per-Class Recall,AKIEC,0.7241
+Per-Class F1,AKIEC,0.7241
+Per-Class N_true,AKIEC,58
+Per-Class N_pred,AKIEC,58
+Per-Class Precision,BCC,0.7071
+Per-Class Recall,BCC,0.8861
+Per-Class F1,BCC,0.7865
+Per-Class N_true,BCC,79
+Per-Class N_pred,BCC,99
+Per-Class Precision,BKL,0.6562
+Per-Class Recall,BKL,0.6632
+Per-Class F1,BKL,0.6597
+Per-Class N_true,BKL,190
+Per-Class N_pred,BKL,192
+Per-Class Precision,DF,0.7692
+Per-Class Recall,DF,0.7692
+Per-Class F1,DF,0.7692
+Per-Class N_true,DF,13
+Per-Class N_pred,DF,13
+Per-Class Precision,NV,0.9106
+Per-Class Recall,NV,0.9244
+Per-Class F1,NV,0.9175
+Per-Class N_true,NV,992
+Per-Class N_pred,NV,1007
+Per-Class Precision,MEL,0.6476
+Per-Class Recall,MEL,0.4789
+Per-Class F1,MEL,0.5506
+Per-Class N_true,MEL,142
+Per-Class N_pred,MEL,105
+Per-Class Precision,VASC,0.9286
+Per-Class Recall,VASC,0.9286
+Per-Class F1,VASC,0.9286
+Per-Class N_true,VASC,28
+Per-Class N_pred,VASC,28
+Clinical Safety,melanoma_miss_rate_argmax,0.5211
+Clinical Safety,melanoma_false_alarm_rate_argmax,0.0272
+Clinical Safety,review_escalation_rate_screening,0.4594
+Clinical Safety,high_uncertainty_rate,0.0033
+Clinical Safety,n_mel_test,142
+Clinical Safety,n_mel_missed,74
+Clinical Safety,n_mel_fa,37
+Clinical Safety,n_flagged_screening,690
+Clinical Safety,n_flagged_balanced,467
+Calibration,temperature_T,0.5813
+Calibration,ece_before,0.0606
+Calibration,ece_after,0.0923
+Overall,f1_macro,0.5443
+Overall,mel_recall_argmax,0.6056
+Overall,auc_roc,0.8693
+Overall,threshold_screening,0.01
+Overall,threshold_balanced,0.07

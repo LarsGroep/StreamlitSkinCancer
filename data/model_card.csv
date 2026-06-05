@@ -1,0 +1,50 @@
+category,field,value
+Dataset,n_classes,7
+Dataset,classes,"AKIEC, BCC, BKL, DF, NV, MEL, VASC"
+Dataset,n_test,1502
+Dataset,n_val,1502
+Dataset,n_train,5024
+Class Imbalance,test_count_AKIEC,58
+Class Imbalance,test_count_BCC,79
+Class Imbalance,test_count_BKL,190
+Class Imbalance,test_count_DF,13
+Class Imbalance,test_count_NV,992
+Class Imbalance,test_count_MEL,142
+Class Imbalance,test_count_VASC,28
+Class Imbalance,nv_mel_ratio_test,7.0
+Architecture,backbone,EfficientNet-B0 (ImageNet pre-trained)
+Architecture,embedding_dim,1280
+Architecture,morphology_features,44
+Architecture,extended_features,64
+Architecture,fusion_method,Concatenate [B0 | morphology]
+Architecture,classifier,"Logistic Regression (C=1, max_iter=1000)"
+Architecture,best_ensemble,Exp51:LR
+Architecture,calibration,Temperature scaling (T=0.581)
+Architecture,n_morphology_groups,"4 (Shape 12, Color 12, Texture 11, Border 9)"
+Features,all_morphology_features,"asym_combined, asym_vertical, asym_horizontal, border_irreg, major_axis, minor_axis, eccentricity, area_ratio, convexity_ratio, waviness, aspect_ratio, mask_quality, hue_mean, hue_std, hue_entropy, hue_skewness, sat_mean, sat_std, value_mean, pigment, red_frac, yellow_frac, blue_frac, blue_white_frac, glcm_contrast, glcm_dissim, glcm_homogen, glcm_energy, glcm_corr, lbp_entropy, lbp_uniform, lbp_nonunif, texture_var, texture_ent, vessel_density, defect_count, max_defect_d, mean_defect_d, curvature_std, curvature_max, fractal_dim, border_gran, perim_norm, dark_area_ratio"
+Operating Points,f1_macro_best,0.5443
+Operating Points,mel_recall_argmax,0.6056
+Operating Points,auc_roc,0.8693
+Operating Points,ece_pre_calibration,0.0606
+Operating Points,ece_post_calibration,0.0923
+Operating Points,threshold_screening,0.01
+Operating Points,threshold_balanced,0.07
+Operating Points,mel_recall_at_pareto,0.8239
+Operating Points,specificity_at_pareto,0.7426
+Operating Points,ppv_at_pareto,0.2505
+Operating Points,npv_at_pareto,0.9758
+Failure Modes,mel_fn_rate,0.5211
+Failure Modes,mel_missed_as_NV,51
+Failure Modes,mel_missed_as_BKL,20
+Failure Modes,primary_failure,MEL->NV confusion (nevus training dominance)
+Failure Modes,secondary_failure,MEL->BKL confusion (flat pigmented lesions)
+Failure Modes,shap_feature_split,92.3% backbone
+Limitations,lim_1,Not validated on external datasets beyond ISIC 2018/2019
+Limitations,lim_2,Performance may degrade on unseen dermoscope hardware
+Limitations,lim_3,Otsu segmentation may fail on low-contrast or hairline artefacts
+Limitations,lim_4,NV class dominance limits MEL recall at standard threshold
+Limitations,lim_5,"SHAP contributions: backbone ~92%, morphology ~8% of MEL signal"
+Intended Use,intended_use,"Clinical decision support, second-opinion tool for dermatologists"
+Intended Use,not_intended,"Autonomous diagnosis, population screening without clinician"
+Intended Use,recommended_op,Screening: thr=0.20 (MelRec~0.93). Balanced: Pareto threshold.
+Intended Use,disclaimer,NOT FOR DIAGNOSTIC USE. Research prototype only. All outputs require clinical review.
