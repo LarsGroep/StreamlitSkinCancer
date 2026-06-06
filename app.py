@@ -164,7 +164,7 @@ def load_backbone():
         import timm, torch
         from torchvision import transforms
         model = timm.create_model("efficientnet_b0", pretrained=False, num_classes=0)
-        pth_path = DATA / "figures" / "backbone_finetuned.pth"
+        pth_path = DATA / "backbone_finetuned.pth"
         if pth_path.exists():
             state = torch.load(str(pth_path), map_location="cpu")
             model.load_state_dict(state, strict=False)
