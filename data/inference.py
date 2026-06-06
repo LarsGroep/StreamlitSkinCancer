@@ -19,11 +19,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-import torch
-import torch.nn.functional as F
-import timm
 from PIL import Image
-from torchvision import transforms
 
 warnings.filterwarnings('ignore')
 
@@ -285,6 +281,8 @@ class DermPredictor:
         print(f'[DermPredictor] Ready.  Model={self.model_name}  Classes={self.class_names}')
 
     def _load_artefacts(self):
+        import torch
+        import timm
         with open(self.deploy_dir / 'config.json') as f:
             cfg = json.load(f)
         self.class_names    = cfg['class_names']
@@ -317,6 +315,7 @@ class DermPredictor:
             self.col_means = pickle.load(f)
 
     def _build_transform(self):
+        from torchvision import transforms
         self.transform = transforms.Compose([
             transforms.Resize((self.image_size, self.image_size)),
             transforms.ToTensor(),
@@ -335,6 +334,7 @@ class DermPredictor:
         -------
         np.ndarray of shape (1280,), dtype float32
         """
+        import torch
         img = Image.open(img_path).convert('RGB')
         tensor = self.transform(img).unsqueeze(0).to(self.device)
         with torch.no_grad():

@@ -213,14 +213,20 @@ def run_inference(img: Image.Image):
     cfg = load_config()
     classes = cfg.get("class_names", CLASS_NAMES)
 
-    morph = extract_morphology_from_pil(img)
-    if morph is None or scaler is None:
-        morph = np.zeros(44, dtype=np.float32)
+    morph_raw = extract_morphology_from_pil(img)
+    morph_ok = morph_raw is not None and scaler is not None
+    if morph_ok:
+        # Impute any NaN with col_means before scaling
+        if col_means is not None:
+            morph_raw = np.where(np.isfinite(morph_raw), morph_raw,
+                                 np.array(col_means, dtype=np.float32))
+        morph = scaler.transform(morph_raw.reshape(1, -1)).flatten()
     else:
-        morph = scaler.transform(morph.reshape(1, -1)).flatten()
+        morph = np.zeros(44, dtype=np.float32)
 
     b0 = extract_b0_embedding(img)
-    if b0 is None:
+    b0_ok = b0 is not None
+    if not b0_ok:
         b0 = np.zeros(1280, dtype=np.float32)
 
     hybrid = np.concatenate([b0, morph]).reshape(1, -1)
@@ -228,11 +234,13 @@ def run_inference(img: Image.Image):
     if clf is None:
         raw = np.random.dirichlet(np.ones(len(classes)))
         return {
-            "probs":      dict(zip(classes, raw.tolist())),
-            "predicted":  classes[int(np.argmax(raw))],
+            "probs":       dict(zip(classes, raw.tolist())),
+            "predicted":   classes[int(np.argmax(raw))],
             "morph_feats": morph,
-            "b0_emb":     b0,
-            "demo_mode":  True,
+            "b0_emb":      b0,
+            "demo_mode":   True,
+            "morph_ok":    False,
+            "b0_ok":       False,
         }
 
     try:
@@ -242,11 +250,13 @@ def run_inference(img: Image.Image):
 
     probs = dict(zip(classes, probs_arr.tolist()))
     return {
-        "probs":      probs,
-        "predicted":  max(probs, key=probs.get),
+        "probs":       probs,
+        "predicted":   max(probs, key=probs.get),
         "morph_feats": morph,
-        "b0_emb":     b0,
-        "demo_mode":  False,
+        "b0_emb":      b0,
+        "demo_mode":   False,
+        "morph_ok":    morph_ok,
+        "b0_ok":       b0_ok,
     }
 
 
@@ -804,9 +814,17 @@ with wide_layout():
         predicted = result["predicted"]
         morph     = result["morph_feats"]
         demo      = result.get("demo_mode", False)
+        morph_ok  = result.get("morph_ok", False)
+        b0_ok     = result.get("b0_ok", False)
 
         if demo:
-            st.info("Demomodus actief (backbone of classificeerder niet beschikbaar). Kansen zijn willekeurig gegenereerd.")
+            st.warning("Demomodus: classificeerder niet beschikbaar. Kansen zijn willekeurig.")
+        elif not morph_ok and not b0_ok:
+            st.warning("Beide feature-extractors niet beschikbaar. Voorspelling is gebaseerd op nulvectoren.")
+        elif not b0_ok:
+            st.info("Backbone niet beschikbaar in deze omgeving. Voorspelling is gebaseerd op de 44 morfologische kenmerken.")
+        elif not morph_ok:
+            st.info("Morfologie-extractie niet beschikbaar. Voorspelling is gebaseerd op visuele backbone-kenmerken.")
 
         st.space()
 
